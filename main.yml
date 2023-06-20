@@ -1,0 +1,22 @@
+name: Push directory to another repository
+on: push
+jobs:
+  sync-to-azure:
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/your-github-branch-here'
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run script file
+      env:
+        AZBRANCH: "your-AZ-branch-name"
+        AZREPO: "your-AZ-repo-name"
+        AZUSERNAME: "azuredevops-am-github-sync"
+        AZUSEREMAIL: "azuredevops-am-github-sync@nordeapensiondk.onmicrosoft.com"
+        AZPAT: ${{ secrets.AZPAT }}
+        AZPROJ: "Application%20Migration"
+        AZORG: "nordeapensiondk"
+        GITBRANCH: ${{ github.ref }}
+      run: |
+         chmod +x .github/workflows/commit.sh
+         .github/workflows/commit.sh
+      shell: bash
