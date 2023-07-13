@@ -1,22 +1,24 @@
-name: Push directory to another repository
+name: Synchronize repository to Azure DevOps
 on: push
 jobs:
   sync-to-azure:
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/your-github-branch-here'
+    if: github.ref == 'refs/heads/your-github-syncing-branch-here'
     steps:
     - uses: actions/checkout@v3
-    - name: Run script file
+    - name: set azure email
+      run: git config --global user.email "azuredevops-am-github-sync@nordeapensiondk.onmicrosoft.com"
+    - name: set azure name
+      run: git config --global user.name "azuredevops-am-github-sync"
+    - name: set remote url
       env:
-        AZBRANCH: "your-AZ-branch-name"
-        AZREPO: "your-AZ-repo-name"
-        AZUSERNAME: "azuredevops-am-github-sync"
-        AZUSEREMAIL: "azuredevops-am-github-sync@nordeapensiondk.onmicrosoft.com"
+        AZREPO: "your-Azure-DevOps-repository-here"
         AZPAT: ${{ secrets.AZPAT }}
-        AZPROJ: "Application%20Migration"
-        AZORG: "nordeapensiondk"
+      run: git remote set-url --push origin https://azuredevops-am-github-sync:$AZPAT@dev.azure.com/nordeapensiondk/Application%20Migration/_git/$AZREPO
+    - name: git fetch
+      run: git fetch --unshallow origin
+    - name: git push
+      env:
+        AZBRANCH: "your-Azure-DevOps-branch-here"
         GITBRANCH: ${{ github.ref }}
-      run: |
-         chmod +x .github/workflows/commit.sh
-         .github/workflows/commit.sh
-      shell: bash
+      run: git push origin $GITBRANCH:$AZBRANCH
