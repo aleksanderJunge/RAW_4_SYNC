@@ -1,0 +1,58 @@
+name: Sync fork from upstream
+on:
+  push:
+  schedule:
+    - cron:  '0 0 * * 6'
+jobs:
+  sync-from-forked-repo:
+    runs-on: self-hosted
+    env:
+      REPO_NAME: 'repository-name'
+      FORK_ORG: 'organization-it-was-forked-from'
+      UPSTREAM_DEFAULT_BRANCHNAME: 'default-branch-of-repository-it-was-forked-from'
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: 'fork-sync'
+    - name: set upstream url
+      run: git remote set-url upstream https://github.devops.topdanmark.cloud/$FORK_ORG/$REPO_NAME || git remote add upstream https://github.devops.topdanmark.cloud/$FORK_ORG/$REPO_NAME
+    - name: fetch upstream
+      run: git fetch upstream
+    - name: reset to HEAD of remote repository (removes disable Jenkins commit)
+      run: git reset --hard `git log -n 1 --pretty=format:"%H" upstream/$UPSTREAM_DEFAULT_BRANCHNAME`
+    - name: rename jenkinsfile to disable trigger
+      run: mv Jenkinsfile Jenkinsfile.disabled
+    - name: git add
+      run: git add .
+    - name: git commit 
+      run: git commit -m "Disable Jenkins"
+    - name: set push remote
+      run: git remote set-url --push origin https://github.devops.topdanmark.cloud/nlp/$REPO_NAME
+    - name: push to nlp repo
+      run: git push -f origin fork-sync
+
+  sync-to-azure:
+    needs: sync-from-forked-repo
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: 'fork-sync'
+    - name: set azure email
+      run: git config --global user.email "azuredevops-am-github-sync@nordeapensiondk.onmicrosoft.com"
+    - name: set azure name
+      run: git config --global user.name "azuredevops-am-github-sync"
+    - name: set remote url
+      env:
+        AZREPO: 'app-web-general_proxy'
+        AZPAT: ${{ secrets.AZPAT }}
+      run: git remote set-url --push origin https://azuredevops-am-github-sync:$AZPAT@dev.azure.com/nordeapensiondk/Application%20Migration/_git/$AZREPO
+    - name: git fetch
+      run: git fetch --unshallow origin
+    - name: remove latest commit (disabling Jenkins)
+      run: git reset --hard HEAD^
+    - name: git push
+      env:
+        AZBRANCH: 'azure-branch-name'
+        GITBRANCH: 'fork-sync'
+      run: git push origin $GITBRANCH:$AZBRANCH --force
